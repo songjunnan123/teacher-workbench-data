@@ -1217,10 +1217,12 @@ function loadSyncCfg(){
 }
 function saveSyncCfg(cfg){SYNC_CFG=cfg||null;if(cfg)localStorage.setItem(SYNC_KEY,JSON.stringify(cfg));else localStorage.removeItem(SYNC_KEY)}
 
-// URL 参数：?ro=1 强制只读；?src=<url> 指定静态根（默认 ./）
+let TEACHER=false;
+// URL 参数：?ro=1 强制只读；?teacher=1 老师模式（绕过家长自动只读）；?src=<url> 指定静态根
 function parseSyncURL(){
   const p=new URLSearchParams(location.search);
   if(p.get('ro')==='1'||p.get('readonly')==='1')READONLY=true;
+  if(p.get('teacher')==='1'||p.get('edit')==='1')TEACHER=true;
   const src=p.get('src');
   if(src)SYNC_BASE=src.endsWith('/')?src:src+'/';
 }
@@ -1421,8 +1423,11 @@ function setupSyncUI(){
   const push=document.getElementById('syncPushBtn');
   const cfg=document.getElementById('syncCfgBtn');
   const hasCfg=!!SYNC_CFG;
-  pull.style.display=READONLY?'inline-flex':(hasCfg?'inline-flex':'none');
-  push.style.display=(READONLY||!hasCfg)?'none':'inline-flex';
+  // ⬇ 拉取：家长可点（走 Pages 同源），老师有配置也可点（走 GitHub API）
+  pull.style.display=(READONLY||hasCfg)?'inline-flex':'none';
+  // ⬆ 推送：仅老师且有配置时显示
+  push.style.display=(!READONLY&&hasCfg)?'inline-flex':'none';
+  // ☁ 同步设置：家长隐藏；老师（无论是否已填配置）都显示
   cfg.style.display=READONLY?'none':'inline-flex';
 }
 
@@ -1444,8 +1449,8 @@ document.getElementById('syncCfgBtn').onclick=()=>openSyncCfg();
 document.getElementById('syncBannerClose').onclick=()=>{_syncing=false;hideBanner()};
 
 loadSyncCfg();
-// http(s) 打开且未配置 token → 视为家长端，自动只读
-if(!READONLY&&location.protocol.startsWith('http')&&!SYNC_CFG){READONLY=true}
+// http(s) 打开且未配置 token 且没显式 ?teacher=1 → 视为家长端，自动只读
+if(!READONLY&&!TEACHER&&location.protocol.startsWith('http')&&!SYNC_CFG){READONLY=true}
 applyReadonlyBody();
 setupSyncUI();
 guardWindowFns();
