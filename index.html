@@ -1249,6 +1249,7 @@ function ghApi(method,path,body){
 function u8ToB64(u8){let b='';for(let i=0;i<u8.length;i++)b+=String.fromCharCode(u8[i]);return btoa(b)}
 function strToB64(s){return u8ToB64(new TextEncoder().encode(s))}
 function b64ToU8(b64){const bin=atob(b64);const u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return u}
+function b64ToStr(b64){return new TextDecoder('utf-8').decode(b64ToU8(b64))} // ← 关键：base64→UTF-8 字符串（中文才不会乱码）
 function blobToB64Url(blob){return new Promise(res=>{const r=new FileReader();r.onload=()=>{const s=r.result;res(s.slice(s.indexOf(',')+1))};r.readAsDataURL(blob)})}
 async function ghGetFile(path){try{const j=await ghApi('GET',path);return{sha:j.sha,content:j.content||'',encoding:j.encoding}}catch(e){if(e.status===404)return null;throw e}}
 function ghPutFile(path,b64Content,message,sha){const body={message,branch:SYNC_CFG.branch,content:b64Content};if(sha)body.sha=sha;return ghApi('PUT',path,body)}
@@ -1288,7 +1289,7 @@ async function pullSync(silent){
   try{
     const j=await ghGetFile('data.json');
     if(!j){if(!silent)toast('云端还没有数据，请先推送');_syncing=false;if(!silent)hideBanner();return false}
-    let dbNew;try{dbNew=JSON.parse(atob(j.content.replace(/\n/g,'')))}catch(e){throw new Error('data.json 解析失败')}
+    let dbNew;try{dbNew=JSON.parse(b64ToStr(j.content.replace(/\n/g,'')))}catch(e){throw new Error('data.json 解析失败')}
     clearUrlCache();
     await fileClear();
     DB=dbNew;saveDB();
